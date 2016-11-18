@@ -1,10 +1,14 @@
 #ifndef LANGUAGE_H
 #define LANGUAGE_H
 
+#define LANGUAGE_CONCAT(M)       #M
+#define GENERATE_LANGUAGE_INCLUDE(M)  LANGUAGE_CONCAT(language_##M.h)
+
+
 // NOTE: IF YOU CHANGE LANGUAGE FILES OR MERGE A FILE WITH CHANGES
 //
-//   ==> ALWAYS TRY TO COMPILE MARLIN WITH/WITHOUT "ULTIPANEL" / "ULTRALCD" / "SDSUPPORT" #define IN "Configuration.h" 
-//   ==> ALSO TRY ALL AVAILABLE "LANGUAGE_CHOICE" OPTIONS
+//   ==> ALWAYS TRY TO COMPILE MARLIN WITH/WITHOUT "ULTIPANEL" / "ULTRALCD" / "SDSUPPORT" #define IN "Configuration.h"
+//   ==> ALSO TRY ALL AVAILABLE LANGUAGE OPTIONS
 
 // Languages
 // en English
@@ -20,40 +24,59 @@
 // nl Dutch
 // ca Catalan
 // eu Basque-Euskera
+// cz Czech
 
-#ifndef LANGUAGE_CHOICE
-	#define LANGUAGE_CHOICE en  // Pick your language from the list above
+#ifndef LANGUAGE_INCLUDE
+  // pick your language from the list above
+  #define LANGUAGE_INCLUDE GENERATE_LANGUAGE_INCLUDE(en)
 #endif
 
-#if LANGUAGE_CHOICE >= 1
-  #error "Languages now uses ISO language codes instead of numbers."
+#if defined(USE_AUTOMATIC_VERSIONING)
+  #include "_Version.h"
+#else
+  #include "Default_Version.h"
 #endif
 
 #define PROTOCOL_VERSION "1.0"
 
 #if MB(ULTIMAKER)|| MB(ULTIMAKER_OLD)|| MB(ULTIMAIN_2)
-	#define MACHINE_NAME "Ultimaker"
-	#define FIRMWARE_URL "http://firmware.ultimaker.com"
+  #define MACHINE_NAME "Ultimaker"
+  #define FIRMWARE_URL "https://github.com/Ultimaker/Marlin"
 #elif MB(RUMBA)
-	#define MACHINE_NAME "Rumba"
-	#define FIRMWARE_URL "https://github.com/ErikZalm/Marlin/"
+  #define MACHINE_NAME "Rumba"
+  #define FIRMWARE_URL "https://github.com/MarlinFirmware/Marlin"
 #elif MB(3DRAG)
-	#define MACHINE_NAME "3Drag"
-	#define FIRMWARE_URL "http://3dprint.elettronicain.it/"
+  #define MACHINE_NAME "3Drag"
+  #define FIRMWARE_URL "http://3dprint.elettronicain.it/"
 #elif MB(5DPRINT)
-	#define MACHINE_NAME "Makibox"
-	#define FIRMWARE_URL "https://github.com/ErikZalm/Marlin/"
+  #define MACHINE_NAME "Makibox"
+  #define FIRMWARE_URL "https://github.com/MarlinFirmware/Marlin"
+#elif MB(SAV_MKI)
+  #define MACHINE_NAME "SAV MkI"
+  #define FIRMWARE_URL "https://github.com/fmalpartida/Marlin/tree/SAV-MkI-config"
 #else
-	#ifdef CUSTOM_MENDEL_NAME
-		#define MACHINE_NAME CUSTOM_MENDEL_NAME
-	#else
-		#define MACHINE_NAME "Mendel"
-	#endif
+  #ifdef CUSTOM_MENDEL_NAME
+    #define MACHINE_NAME CUSTOM_MENDEL_NAME
+  #else
+    #define MACHINE_NAME "Mendel"
+  #endif
 
 // Default firmware set to Mendel
-	#define FIRMWARE_URL "https://github.com/ErikZalm/Marlin/"
+  #define FIRMWARE_URL "https://github.com/MarlinFirmware/Marlin"
 #endif
 
+#ifdef CUSTOM_MACHINE_NAME
+  #undef MACHINE_NAME
+  #define MACHINE_NAME CUSTOM_MACHINE_NAME
+#endif
+
+#ifndef SOURCE_CODE_URL
+  #define SOURCE_CODE_URL "https://github.com/MarlinFirmware/Marlin"
+#endif
+
+#ifndef DETAILED_BUILD_VERSION
+  #error BUILD_VERSION Information must be specified
+#endif
 
 #ifndef MACHINE_UUID
    #define MACHINE_UUID "00000000-0000-0000-0000-000000000000"
@@ -103,7 +126,7 @@
 #define MSG_HEATING_COMPLETE                "Heating done."
 #define MSG_BED_HEATING                     "Bed Heating."
 #define MSG_BED_DONE                        "Bed done."
-#define MSG_M115_REPORT                     "FIRMWARE_NAME:Marlin V1; Sprinter/grbl mashup for gen6 FIRMWARE_URL:" FIRMWARE_URL " PROTOCOL_VERSION:" PROTOCOL_VERSION " MACHINE_TYPE:" MACHINE_NAME " EXTRUDER_COUNT:" STRINGIFY(EXTRUDERS) " UUID:" MACHINE_UUID "\n"
+#define MSG_M115_REPORT                     "FIRMWARE_NAME:Marlin " DETAILED_BUILD_VERSION " SOURCE_CODE_URL:" FIRMWARE_URL " PROTOCOL_VERSION:" PROTOCOL_VERSION " MACHINE_TYPE:" MACHINE_NAME " EXTRUDER_COUNT:" STRINGIFY(EXTRUDERS) " UUID:" MACHINE_UUID "\n"
 #define MSG_COUNT_X                         " Count X: "
 #define MSG_ERR_KILLED                      "Printer halted. kill() called!"
 #define MSG_ERR_STOPPED                     "Printer stopped due to errors. Fix the error and use M999 to restart. (Temperature is reset. Set it after restarting)"
@@ -136,7 +159,7 @@
 #define MSG_SD_PRINTING_BYTE                "SD printing byte "
 #define MSG_SD_NOT_PRINTING                 "Not SD printing"
 #define MSG_SD_ERR_WRITE_TO_FILE            "error writing to file"
-#define MSG_SD_CANT_ENTER_SUBDIR 			"Cannot enter subdir: "
+#define MSG_SD_CANT_ENTER_SUBDIR            "Cannot enter subdir: "
 
 #define MSG_STEPPER_TOO_HIGH                "Steprate too high: "
 #define MSG_ENDSTOPS_HIT                    "endstops hit: "
@@ -145,36 +168,10 @@
 #define MSG_BABYSTEPPING_X                  "Babystepping X"
 #define MSG_BABYSTEPPING_Y                  "Babystepping Y"
 #define MSG_BABYSTEPPING_Z                  "Babystepping Z"
-#define MSG_SERIAL_ERROR_MENU_STRUCTURE		"Error in menu structure"
+#define MSG_SERIAL_ERROR_MENU_STRUCTURE     "Error in menu structure"
 
 // LCD Menu Messages
 
-#if   LANGUAGE_CHOICE == en // English
-  #include "language_en.h"
-#elif LANGUAGE_CHOICE == pl // Polish
-  #include "language_pl.h"
-#elif LANGUAGE_CHOICE == fr // French
-  #include "language_fr.h"
-#elif LANGUAGE_CHOICE == de // German
-  #include "language_de.h"
-#elif LANGUAGE_CHOICE == es // Spanish
-  #include "language_es.h"
-#elif LANGUAGE_CHOICE == ru // Russian
-  #include "language_ru.h"
-#elif LANGUAGE_CHOICE == it // Italian
-  #include "language_it.h"
-#elif LANGUAGE_CHOICE == pt // Portuguese
-  #include "language_pt.h"
-#elif LANGUAGE_CHOICE == fi // Finnish
-  #include "language_fi.h"
-#elif LANGUAGE_CHOICE == an // Aragonese
-  #include "language_an.h"
-#elif LANGUAGE_CHOICE == nl // Dutch
-  #include "language_nl.h"
-#elif LANGUAGE_CHOICE == ca // Catalan
-  #include "language_ca.h"
-#elif LANGUAGE_CHOICE == eu // Basque-Euskera
-  #include "language_eu.h"
-#endif
+#include LANGUAGE_INCLUDE
 
 #endif //__LANGUAGE_H

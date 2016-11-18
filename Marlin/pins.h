@@ -655,8 +655,10 @@
     #define LED_PIN            13
   #endif
 
-  #if MB(RAMPS_13_EFB) || MB(RAMPS_13_EFF) || MB(AZTEEG_X3) || MB(AZTEEG_X3_PRO)
+  #if MB(RAMPS_13_EFB) || MB(RAMPS_13_EFF) || MB(AZTEEG_X3)
     #define FAN_PIN            9 // (Sprinter config)
+  #elif MB(AZTEEG_X3_PRO)
+    #define FAN_PIN            11 // Last Heater Pin on board
   #else
     #define FAN_PIN            4 // IO pin. Buffer needed
   #endif
@@ -904,9 +906,9 @@
   #define SCK_PIN          52
   #define MISO_PIN         50
   #define MOSI_PIN         51
-  #define MAX6675_SS       53
+  #define MAX6675_SS       66// Do not use pin 53 if there is even the remote possibility of using Dsplay/SD card
 #else
-  #define MAX6675_SS       49
+  #define MAX6675_SS       66// Do not use pin 49 as this is tied to the switch inside the SD card socket to detect if there is an SD card present
 #endif
 
 #endif // RAMPS_OLD || RAMPS_13_EFB || RAMPS_13_EEB || RAMPS_13_EFF || 3DRAG
@@ -1400,6 +1402,7 @@
 #define PS_ON_PIN          12
 #define KILL_PIN           -1
 #define SUICIDE_PIN        54  //PIN that has to be turned on right after start, to keep power flowing.
+#define SERVO0_PIN         13  // untested
 
 #ifdef ULTRA_LCD
 
@@ -1904,6 +1907,8 @@
   #define X_STOP_PIN         13
   #define Y_STOP_PIN         14
   #define Z_STOP_PIN         15
+//  #define Z_STOP_PIN         36  // For inductive sensor.
+
   #define TEMP_0_PIN          7  // Extruder / Analog pin numbering
   #define TEMP_BED_PIN        6  // Bed / Analog pin numbering
 
@@ -1914,7 +1919,6 @@
 #define SDSS               20  // PB0 - 8 in marlin env.
 #define LED_PIN            -1
 #define PS_ON_PIN          -1
-#define KILL_PIN           -1
 #define ALARM_PIN          -1
 #define SDCARDDETECT       -1
 
@@ -1933,13 +1937,24 @@
 #define LCD_PINS_D5        -1
 #define LCD_PINS_D6        -1
 #define LCD_PINS_D7        -1
-#define BTN_EN1            -1
-#define BTN_EN2            -1
-#define BTN_ENC            -1
 
+#ifdef SAV_3DLCD
 // For LCD SHIFT register LCD
-#define SR_DATA_PIN         0
-#define SR_CLK_PIN          1
+#define SR_DATA_PIN         1
+#define SR_CLK_PIN          0
+
+#define BTN_EN1            41
+#define BTN_EN2            40
+#define BTN_ENC            12
+
+#define KILL_PIN           42 // A2 = 42 - teensy = 40
+#define HOME_PIN          -1 // A4 = marlin 44 - teensy = 42
+
+#ifdef NUM_SERVOS
+  #define SERVO0_PIN       41 // In teensy's pin definition for pinMode (in Servo.cpp)
+#endif
+
+#endif
 
 #endif // SAV_MKI
 
@@ -2063,73 +2078,6 @@ DaveX plan for Teensylu/printrboard-type pinouts (ref teensylu & sprinter) for a
 #endif
 
 #endif // TEENSY2
-
-
-/****************************************************************************************
- * Brainwave Pro pin assignments (AT90USB186)
- * Requires hardware bundle for Arduino:
-   https://github.com/unrepentantgeek/brainwave-arduino
- ****************************************************************************************/
-#if MB(BRAINWAVE_PRO)
-#define KNOWN_BOARD 1
-#define AT90USB 1286  // Disable MarlinSerial etc.
-
-#ifndef __AVR_AT90USB1286__
-#error Oops!  Make sure you have 'Brainwave 2' selected from the 'Tools -> Boards' menu.
-#endif
-
-#define X_STEP_PIN          5
-#define X_DIR_PIN           4
-#define X_ENABLE_PIN       17 //8
-#define X_STOP_PIN         35
-
-#define Y_STEP_PIN          3
-#define Y_DIR_PIN           2
-#define Y_ENABLE_PIN       32
-#define Y_STOP_PIN         38
-
-#define Z_STEP_PIN          1
-#define Z_DIR_PIN           0
-#define Z_ENABLE_PIN       37
-#define Z_MAX_PIN          36
-#define Z_MIN_PIN          23 // Probe pin
-
-#define E0_STEP_PIN         7
-#define E0_DIR_PIN          6
-#define E0_ENABLE_PIN      19
-#define E_STOP_PIN         23
-
-#define HEATER_0_PIN       21 // Extruder
-#define HEATER_1_PIN       -1
-#define HEATER_2_PIN       -1
-#define HEATER_BED_PIN     20  // Bed
-#define FAN_PIN            22  // Fan
-
-#define TEMP_0_PIN          2  // Extruder / Analog pin numbering
-#define TEMP_1_PIN         -1
-#define TEMP_2_PIN         -1
-#define TEMP_BED_PIN        0  // Bed / Analog pin numbering
-
-#define SDPOWER            -1
-#define SDSS                8 //17
-#define LED_PIN            39
-#define PS_ON_PIN          -1
-#define KILL_PIN           -1
-#define ALARM_PIN          -1
-#define SDCARDDETECT       18
-
-#define BTN_EN1            13 // OC1A
-#define BTN_EN2            14 // OC1B
-#define BTN_ENC            15 // OC1C
-
-#ifndef SDSUPPORT
-// these pins are defined in the SD library if building with SD support
-  #define SCK_PIN          9
-  #define MISO_PIN         11
-  #define MOSI_PIN         10
-#endif
-
-#endif // BRAINWAVE_PRO
 
 
 /****************************************************************************************
