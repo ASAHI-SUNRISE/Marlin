@@ -204,8 +204,12 @@ extern volatile uint16_t buttons;  //an extended version of the last checked but
   #else 
     #include <LiquidCrystal.h>
     #define LCD_CLASS LiquidCrystal
-  #endif  
+  #endif
+#ifdef ATOM2LCD  
+  LCD_CLASS lcd(LCD_PINS_RS, LCD_PINS_ENABLE, LCD_PINS_D0, LCD_PINS_D1,LCD_PINS_D2,LCD_PINS_D3, LCD_PINS_D4, LCD_PINS_D5,LCD_PINS_D6,LCD_PINS_D7);  //RS,Enable,D0,D1,D2,D3,D4,D5,D6,D7
+#else
   LCD_CLASS lcd(LCD_PINS_RS, LCD_PINS_ENABLE, LCD_PINS_D4, LCD_PINS_D5,LCD_PINS_D6,LCD_PINS_D7);  //RS,Enable,D4,D5,D6,D7
+#endif
 #endif
 
 /* Custom characters defined in the first 8 characters of the LCD */
@@ -223,13 +227,13 @@ static void lcd_implementation_init()
 {
     byte bedTemp[8] =
     {
-        B00000,
         B11111,
+        B10101,
         B10101,
         B10001,
         B10101,
+        B10101,
         B11111,
-        B00000,
         B00000
     }; //thanks Sonny Mounicou
     byte degree[8] =
@@ -239,19 +243,19 @@ static void lcd_implementation_init()
         B10010,
         B01100,
         B00000,
-        B00000,
-        B00000,
-        B00000
+        B00011,
+        B00010,
+        B00011
     };
     byte thermometer[8] =
     {
-        B00100,
+        B10101,
         B01010,
         B01010,
         B01010,
         B01010,
         B10001,
-        B10001,
+        B11111,
         B01110
     };
     byte uplevel[8]={
@@ -417,18 +421,35 @@ static void lcd_implementation_status_screen()
     lcd_printPGM(PSTR(LCD_STR_DEGREE " "));
     if (tTarget < 10)
         lcd.print(' ');
-
+#ifdef ATOM_DUAL
+#if TEMP_SENSOR_BED != 0
+	lcd.setCursor(9, 0);
+	tHotend=int(degBed() + 0.5);
+    tTarget=int(degTargetBed() + 0.5);
+    lcd.print(LCD_STR_BEDTEMP[0]);
+	lcd.print(itostr3(tHotend));
+    lcd.print('/');
+    lcd.print(itostr3left(tTarget));
+    lcd_printPGM(PSTR(LCD_STR_DEGREE " "));
+    if (tTarget < 10)
+        lcd.print(' ');
+#else
+	lcd.setCursor(18, 0);
+#endif
+	lcd.print('T');
+	lcd.print(active_extruder);
+#else
 # if EXTRUDERS > 1 || TEMP_SENSOR_BED != 0
     //If we have an 2nd extruder or heated bed, show that in the top right corner
     lcd.setCursor(10, 0);
-#  if EXTRUDERS > 1
-    tHotend = int(degHotend(1) + 0.5);
-    tTarget = int(degTargetHotend(1) + 0.5);
-    lcd.print(LCD_STR_THERMOMETER[0]);
-#  else//Heated bed
+#  if TEMP_SENSOR_BED != 0
     tHotend=int(degBed() + 0.5);
     tTarget=int(degTargetBed() + 0.5);
     lcd.print(LCD_STR_BEDTEMP[0]);
+#  else//Extruder 1
+    tHotend = int(degHotend(1) + 0.5);
+    tTarget = int(degTargetHotend(1) + 0.5);
+    lcd.print(LCD_STR_THERMOMETER[0]);
 #  endif
     lcd.print(itostr3(tHotend));
     lcd.print('/');
@@ -437,6 +458,7 @@ static void lcd_implementation_status_screen()
     if (tTarget < 10)
         lcd.print(' ');
 # endif//EXTRUDERS > 1 || TEMP_SENSOR_BED != 0
+#endif
 #endif//LCD_WIDTH > 19
 
 #if LCD_HEIGHT > 2
@@ -452,7 +474,7 @@ static void lcd_implementation_status_screen()
     lcd.print('%');
 #  endif//SDSUPPORT
 # else//LCD_WIDTH > 19
-#  if EXTRUDERS > 1 && TEMP_SENSOR_BED != 0
+#  if EXTRUDERS > 1 && TEMP_SENSOR_BED != 0 && !defined(ATOM_DUAL)
     //If we both have a 2nd extruder and a heated bed, show the heated bed temp on the 2nd line on the left, as the first line is filled with extruder temps
     tHotend=int(degBed() + 0.5);
     tTarget=int(degTargetBed() + 0.5);
@@ -475,7 +497,10 @@ static void lcd_implementation_status_screen()
 # endif//LCD_WIDTH > 19
     lcd.setCursor(LCD_WIDTH - 8, 1);
     lcd.print('Z');
-    lcd.print(ftostr32(current_position[Z_AXIS] + 0.00001));
+	if(current_position[Z_AXIS] < 0)
+		lcd.print(ftostr32(current_position[Z_AXIS] - 0.00001));
+	else
+		lcd.print(ftostr32(current_position[Z_AXIS] + 0.00001));
 #endif//LCD_HEIGHT > 2
 
 #if LCD_HEIGHT > 3
@@ -485,7 +510,7 @@ static void lcd_implementation_status_screen()
     lcd.print('%');
 # if LCD_WIDTH > 19
 #  ifdef SDSUPPORT
-    lcd.setCursor(7, 2);
+    lcd.setCursor(6, 2);
     lcd_printPGM(PSTR("SD"));
     if (IS_SD_PRINTING)
         lcd.print(itostr3(card.percentDone()));
@@ -494,16 +519,16 @@ static void lcd_implementation_status_screen()
     lcd.print('%');
 #  endif//SDSUPPORT
 # endif//LCD_WIDTH > 19
-    lcd.setCursor(LCD_WIDTH - 6, 2);
+    lcd.setCursor(LCD_WIDTH - 7, 2);
     lcd.print(LCD_STR_CLOCK[0]);
     if(starttime != 0)
     {
         uint16_t time = millis()/60000 - starttime/60000;
-        lcd.print(itostr2(time/60));
+        lcd.print(itostr3(time/60));
         lcd.print(':');
         lcd.print(itostr2(time%60));
     }else{
-        lcd_printPGM(PSTR("--:--"));
+        lcd_printPGM(PSTR("---:--"));
     }
 #endif
 

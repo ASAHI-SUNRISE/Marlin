@@ -179,6 +179,9 @@ void calculate_delta(float cartesian[3]);
 void adjust_delta(float cartesian[3]);
 void prepare_move_raw();
 extern float delta[3];
+extern float delta_tower1_x,delta_tower1_y;
+extern float delta_tower2_x,delta_tower2_y;
+extern float delta_tower3_x,delta_tower3_y;
 #endif
 #ifdef SCARA
 void calculate_delta(float cartesian[3]);
@@ -214,8 +217,13 @@ extern int extruder_multiply[EXTRUDERS]; // sets extrude multiply factor (in per
 extern float volumetric_multiplier[EXTRUDERS]; // reciprocal of cross-sectional area of filament (in square millimeters), stored this way to reduce computational burden in planner
 extern float current_position[NUM_AXIS] ;
 extern float add_homing[3];
+extern float eeprom_max_offset;
+#ifdef ENABLE_AUTO_BED_LEVELING
+extern float bed_level[AUTO_BED_LEVELING_GRID_POINTS][AUTO_BED_LEVELING_GRID_POINTS];
+#endif
 #ifdef DELTA
 extern float endstop_adj[3];
+extern float tower_adj[6];
 extern float delta_radius;
 extern float delta_diagonal_rod;
 extern float delta_segments_per_second;
@@ -228,6 +236,7 @@ extern float min_pos[3];
 extern float max_pos[3];
 extern bool axis_known_position[3];
 extern float zprobe_zoffset;
+extern bool changing_filament;
 extern int fanSpeed;
 #ifdef BARICUDA
 extern int ValvePressure;
@@ -259,7 +268,7 @@ extern unsigned long starttime;
 extern unsigned long stoptime;
 
 // Handling multiple extruders pins
-extern uint8_t active_extruder;
+extern int active_extruder;
 
 #ifdef DIGIPOT_I2C
 extern void digipot_i2c_set_current( int channel, float current );

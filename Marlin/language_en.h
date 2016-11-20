@@ -15,6 +15,7 @@
 #define MSG_AUTOSTART                       "Autostart"
 #define MSG_DISABLE_STEPPERS                "Disable steppers"
 #define MSG_AUTO_HOME                       "Auto home"
+#define MSG_AUTO_LEVEL                      "Auto Level"
 #define MSG_SET_HOME_OFFSETS                "Set home offsets"
 #define MSG_SET_ORIGIN                      "Set origin"
 #define MSG_PREHEAT_PLA                     "Preheat PLA"
@@ -126,5 +127,10 @@
 #define MSG_ENDSTOP_ABORT                   "Endstop abort"
 
 #define MSG_RECTRACT                        "Rectract"
+
+#define MSG_LOAD_FILAMENT                   "Load Filament"
+#define MSG_UNLOAD_FILAMENT                 "Unload Filament"
+#define MSG_CHANGE_FILAMENT 				  	 "Change Filament"
+#define MSG_ACTIVE_EXTRUDER					"Active Extruder"
 
 #endif // LANGUAGE_EN_H

@@ -275,9 +275,21 @@ static void lcd_sdcard_pause()
 {
     card.pauseSDPrint();
 }
+
+static void lcd_sdcard_m600()
+{
+    //card.pauseSDPrint();
+    enquecommand_P((PSTR("M600")));
+}
+
 static void lcd_sdcard_resume()
 {
-    card.startFileprint();
+    if (changing_filament)
+    {  
+        enquecommand_P((PSTR("M601")));
+    }
+	 else
+		card.startFileprint();
 }
 
 static void lcd_sdcard_stop()
@@ -294,6 +306,7 @@ static void lcd_sdcard_stop()
 	cancel_heatup = true;
 
 	lcd_setstatus(MSG_PRINT_ABORTED);
+	enquecommand_P((PSTR("G28")));
 }
 
 /* Menu implementation */
@@ -314,7 +327,10 @@ static void lcd_main_menu()
         if (card.isFileOpen())
         {
             if (card.sdprinting)
+			{
                 MENU_ITEM(function, MSG_PAUSE_PRINT, lcd_sdcard_pause);
+				MENU_ITEM(function, MSG_CHANGE_FILAMENT, lcd_sdcard_m600);
+			}
             else
                 MENU_ITEM(function, MSG_RESUME_PRINT, lcd_sdcard_resume);
             MENU_ITEM(function, MSG_STOP_PRINT, lcd_sdcard_stop);
@@ -368,12 +384,12 @@ void lcd_set_home_offsets()
       encoderPosition = 0;
       lcdDrawUpdate = 1;
     }
-    if (lcdDrawUpdate) lcd_implementation_drawedit(PSTR(msg), "");
+    if (lcdDrawUpdate) lcd_implementation_drawedit(msg, "");
     if (LCD_CLICKED) lcd_goto_menu(lcd_tune_menu);
   }
-  static void lcd_babystep_x() { _lcd_babystep(X_AXIS, MSG_BABYSTEPPING_X); }
-  static void lcd_babystep_y() { _lcd_babystep(Y_AXIS, MSG_BABYSTEPPING_Y); }
-  static void lcd_babystep_z() { _lcd_babystep(Z_AXIS, MSG_BABYSTEPPING_Z); }
+  static void lcd_babystep_x() { _lcd_babystep(X_AXIS, PSTR(MSG_BABYSTEPPING_X)); }
+  static void lcd_babystep_y() { _lcd_babystep(Y_AXIS, PSTR(MSG_BABYSTEPPING_Y)); }
+  static void lcd_babystep_z() { _lcd_babystep(Z_AXIS, PSTR(MSG_BABYSTEPPING_Z)); }
 
 #endif //BABYSTEPPING
 
@@ -555,6 +571,25 @@ static void lcd_preheat_abs_menu()
     END_MENU();
 }
 
+void unload_filament()
+{
+    enquecommand_P((PSTR("G91")));
+    enquecommand_P((PSTR("G1 F300 E30")));
+    enquecommand_P((PSTR("G1 F3000 E-20")));
+    enquecommand_P((PSTR("G1 F5000 E-1000")));
+	enquecommand_P((PSTR("G90")));
+}
+void load_filament()
+{
+    
+    enquecommand_P((PSTR("G91")));
+    enquecommand_P((PSTR("G0 E1000 F6000")));
+    enquecommand_P((PSTR("G0 E100 F200")));
+	enquecommand_P((PSTR("G90")));
+ 
+   
+}
+
 void lcd_cooldown()
 {
     setTargetHotend0(0);
@@ -576,7 +611,8 @@ static void lcd_prepare_menu()
 #endif
     MENU_ITEM(gcode, MSG_DISABLE_STEPPERS, PSTR("M84"));
     MENU_ITEM(gcode, MSG_AUTO_HOME, PSTR("G28"));
-    MENU_ITEM(function, MSG_SET_HOME_OFFSETS, lcd_set_home_offsets);
+	MENU_ITEM(gcode, MSG_AUTO_LEVEL, PSTR("G29"));
+    //MENU_ITEM(function, MSG_SET_HOME_OFFSETS, lcd_set_home_offsets);
     //MENU_ITEM(gcode, MSG_SET_ORIGIN, PSTR("G92 X0 Y0 Z0"));
 #if TEMP_SENSOR_0 != 0
   #if TEMP_SENSOR_1 != 0 || TEMP_SENSOR_2 != 0 || TEMP_SENSOR_BED != 0
@@ -587,6 +623,9 @@ static void lcd_prepare_menu()
     MENU_ITEM(function, MSG_PREHEAT_ABS, lcd_preheat_abs0);
   #endif
 #endif
+    MENU_ITEM_EDIT(int3, MSG_ACTIVE_EXTRUDER, &active_extruder, 0, 1);
+    MENU_ITEM(function, MSG_LOAD_FILAMENT,load_filament);
+    MENU_ITEM(function, MSG_UNLOAD_FILAMENT,unload_filament);
     MENU_ITEM(function, MSG_COOLDOWN, lcd_cooldown);
 #if PS_ON_PIN > -1
     if (powersupply)
@@ -652,9 +691,9 @@ static void lcd_move_menu_axis()
     MENU_ITEM(back, MSG_MOVE_AXIS, lcd_move_menu);
     MENU_ITEM(submenu, MSG_MOVE_X, lcd_move_x);
     MENU_ITEM(submenu, MSG_MOVE_Y, lcd_move_y);
+    MENU_ITEM(submenu, MSG_MOVE_Z, lcd_move_z);
     if (move_menu_scale < 10.0)
     {
-        MENU_ITEM(submenu, MSG_MOVE_Z, lcd_move_z);
         MENU_ITEM(submenu, MSG_MOVE_E, lcd_move_e);
     }
     END_MENU();
@@ -790,7 +829,7 @@ static void lcd_control_motion_menu()
     START_MENU();
     MENU_ITEM(back, MSG_CONTROL, lcd_control_menu);
 #ifdef ENABLE_AUTO_BED_LEVELING
-    MENU_ITEM_EDIT(float32, MSG_ZPROBE_ZOFFSET, &zprobe_zoffset, 0.5, 50);
+    MENU_ITEM_EDIT(float32, MSG_ZPROBE_ZOFFSET, &zprobe_zoffset, Z_MIN_POS, 15);
 #endif
     MENU_ITEM_EDIT(float5, MSG_ACC, &acceleration, 500, 99000);
     MENU_ITEM_EDIT(float3, MSG_VXY_JERK, &max_xy_jerk, 1, 990);

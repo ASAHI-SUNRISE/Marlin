@@ -185,7 +185,7 @@ void PID_autotune(float temp, int extruder, int ncycles)
 
   long bias, d;
   float Ku, Tu;
-  float Kp, Ki, Kd;
+  float workKp = 0, workKi = 0, workKd = 0;
   float max = 0, min = 10000;
 
   if ((extruder >= EXTRUDERS)
@@ -256,28 +256,28 @@ void PID_autotune(float temp, int extruder, int ncycles)
               Tu = ((float)(t_low + t_high)/1000.0);
               SERIAL_PROTOCOLPGM(" Ku: "); SERIAL_PROTOCOL(Ku);
               SERIAL_PROTOCOLPGM(" Tu: "); SERIAL_PROTOCOLLN(Tu);
-              Kp = 0.6*Ku;
-              Ki = 2*Kp/Tu;
-              Kd = Kp*Tu/8;
+              workKp = 0.6 * Ku;
+              workKi = 2 * workKp / Tu;
+              workKd = workKp * Tu / 8;
               SERIAL_PROTOCOLLNPGM(" Classic PID ");
-              SERIAL_PROTOCOLPGM(" Kp: "); SERIAL_PROTOCOLLN(Kp);
-              SERIAL_PROTOCOLPGM(" Ki: "); SERIAL_PROTOCOLLN(Ki);
-              SERIAL_PROTOCOLPGM(" Kd: "); SERIAL_PROTOCOLLN(Kd);
+              SERIAL_PROTOCOLPGM(" Kp: "); SERIAL_PROTOCOLLN(workKp);
+              SERIAL_PROTOCOLPGM(" Ki: "); SERIAL_PROTOCOLLN(workKi);
+              SERIAL_PROTOCOLPGM(" Kd: "); SERIAL_PROTOCOLLN(workKd);
               /*
-              Kp = 0.33*Ku;
-              Ki = Kp/Tu;
-              Kd = Kp*Tu/3;
+              workKp = 0.33*Ku;
+              workKi = Kp/Tu;
+              workKd = Kp*Tu/3;
               SERIAL_PROTOCOLLNPGM(" Some overshoot ");
-              SERIAL_PROTOCOLPGM(" Kp: "); SERIAL_PROTOCOLLN(Kp);
-              SERIAL_PROTOCOLPGM(" Ki: "); SERIAL_PROTOCOLLN(Ki);
-              SERIAL_PROTOCOLPGM(" Kd: "); SERIAL_PROTOCOLLN(Kd);
-              Kp = 0.2*Ku;
-              Ki = 2*Kp/Tu;
-              Kd = Kp*Tu/3;
+              SERIAL_PROTOCOLPGM(" Kp: "); SERIAL_PROTOCOLLN(workKp);
+              SERIAL_PROTOCOLPGM(" Ki: "); SERIAL_PROTOCOLLN(workKi);
+              SERIAL_PROTOCOLPGM(" Kd: "); SERIAL_PROTOCOLLN(workKd);
+              workKp = 0.2*Ku;
+              workKi = 2*Kp/Tu;
+              workKd = Kp*Tu/3;
               SERIAL_PROTOCOLLNPGM(" No overshoot ");
-              SERIAL_PROTOCOLPGM(" Kp: "); SERIAL_PROTOCOLLN(Kp);
-              SERIAL_PROTOCOLPGM(" Ki: "); SERIAL_PROTOCOLLN(Ki);
-              SERIAL_PROTOCOLPGM(" Kd: "); SERIAL_PROTOCOLLN(Kd);
+              SERIAL_PROTOCOLPGM(" Kp: "); SERIAL_PROTOCOLLN(workKp);
+              SERIAL_PROTOCOLPGM(" Ki: "); SERIAL_PROTOCOLLN(workKi);
+              SERIAL_PROTOCOLPGM(" Kd: "); SERIAL_PROTOCOLLN(workKd);
               */
             }
           }
@@ -315,7 +315,35 @@ void PID_autotune(float temp, int extruder, int ncycles)
       return;
     }
     if(cycles > ncycles) {
-      SERIAL_PROTOCOLLNPGM("PID Autotune finished! Put the last Kp, Ki and Kd constants from above into Configuration.h");
+      SERIAL_ECHO_START;
+      if (extruder<0)
+        SERIAL_ECHOPAIR("   M304 P",workKp); 
+      else
+        SERIAL_ECHOPAIR("   M301 P",workKp); 
+      SERIAL_ECHOPAIR(" I" ,workKi); 
+      SERIAL_ECHOPAIR(" D" ,workKd);
+      SERIAL_ECHOLN(""); 
+      #ifdef PIDTEMPBED
+      #define _SET_BED_PID() \
+          bedKp = workKp; \
+          bedKi = scalePID_i(workKi); \
+          bedKd = scalePID_d(workKd); \
+          updatePID()
+      #endif
+        #define _SET_EXTRUDER_PID() \
+          Kp = workKp; \
+          Ki = scalePID_i(workKi); \
+          Kd = scalePID_d(workKd); \
+          updatePID()
+        if (extruder < 0) {
+          #ifdef PIDTEMPBED
+           _SET_BED_PID();
+           #endif
+        }
+        else {
+          _SET_EXTRUDER_PID();
+        }
+      SERIAL_PROTOCOLLNPGM("PID Autotune finished! Put the last Kp, Ki and Kd constants from above into Configuration.h or Store Memory M500");
       return;
     }
     lcd_update();
@@ -719,7 +747,11 @@ static void updateTemperaturesFromRawValues()
 {
     for(uint8_t e=0;e<EXTRUDERS;e++)
     {
+#ifdef ATOM_DUAL
+		current_temperature[e] = analog2temp(current_temperature_raw[0], 0);
+#else
         current_temperature[e] = analog2temp(current_temperature_raw[e], e);
+#endif
     }
     current_temperature_bed = analog2tempBed(current_temperature_bed_raw);
     #ifdef TEMP_SENSOR_1_AS_REDUNDANT
@@ -1214,7 +1246,7 @@ ISR(TIMER0_COMPB_vect)
       #endif
     } else WRITE(HEATER_0_PIN,0);
 	
-    #if EXTRUDERS > 1
+    #if EXTRUDERS > 1 
     soft_pwm_1 = soft_pwm[1];
     if(soft_pwm_1 > 0) WRITE(HEATER_1_PIN,1); else WRITE(HEATER_1_PIN,0);
     #endif
@@ -1378,7 +1410,11 @@ ISR(TIMER0_COMPB_vect)
     {
       current_temperature_raw[0] = raw_temp_0_value;
 #if EXTRUDERS > 1
+#ifdef ATOM_DUAL
+	  current_temperature_raw[1] = raw_temp_0_value;
+#else
       current_temperature_raw[1] = raw_temp_1_value;
+#endif
 #endif
 #ifdef TEMP_SENSOR_1_AS_REDUNDANT
       redundant_temperature_raw = raw_temp_1_value;

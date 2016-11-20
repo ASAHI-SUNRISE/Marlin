@@ -596,13 +596,14 @@
     #define X_STEP_PIN         54
     #define X_DIR_PIN          55
     #define X_ENABLE_PIN       38
-    #define X_MIN_PIN           3
+    #define X_MIN_PIN          -1// 3
     #define X_MAX_PIN           2
+    #define LASER_PIN           3
 
     #define Y_STEP_PIN         60
     #define Y_DIR_PIN          61
     #define Y_ENABLE_PIN       56
-    #define Y_MIN_PIN          14
+    #define Y_MIN_PIN          -1//14
     #define Y_MAX_PIN          15
 
     #define Z_STEP_PIN         46
@@ -684,7 +685,11 @@
   #endif
 
   #if MB(RAMPS_13_EFB) || MB(AZTEEG_X3)
+  #ifdef ATOM_DUAL
+    #define HEATER_1_PIN       8
+  #else
     #define HEATER_1_PIN       -1
+  #endif
   #else
     #define HEATER_1_PIN       9    // EXTRUDER 2 (FAN On Sprinter)
   #endif
@@ -765,12 +770,22 @@
       #define LCD_PINS_D5 25
       #define LCD_PINS_D6 27
       #define LCD_PINS_D7 29
+      #ifdef ATOM2LCD //8 bits LCD
+        #define LCD_PINS_D0 59
+        #define LCD_PINS_D1 64 
+        #define LCD_PINS_D2 44 
+        #define LCD_PINS_D3 66
+      #endif
 
       #ifdef REPRAP_DISCOUNT_SMART_CONTROLLER
         #define BEEPER 37
-
-        #define BTN_EN1 31
-        #define BTN_EN2 33
+        #ifdef ATOM2LCD
+            #define BTN_EN1 33
+            #define BTN_EN2 31
+        #else
+            #define BTN_EN1 31
+            #define BTN_EN2 33
+        #endif
         #define BTN_ENC 35
 
         #define SDCARDDETECT 49

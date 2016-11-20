@@ -4,7 +4,7 @@
 #include "ultralcd.h"
 #include "ConfigurationStore.h"
 
-void _EEPROM_writeData(int &pos, uint8_t* value, uint8_t size)
+void _EEPROM_writeData(int &pos, uint8_t* value, uint16_t size)
 {
     do
     {
@@ -14,7 +14,7 @@ void _EEPROM_writeData(int &pos, uint8_t* value, uint8_t size)
     }while(--size);
 }
 #define EEPROM_WRITE_VAR(pos, value) _EEPROM_writeData(pos, (uint8_t*)&value, sizeof(value))
-void _EEPROM_readData(int &pos, uint8_t* value, uint8_t size)
+void _EEPROM_readData(int &pos, uint8_t* value, uint16_t size)
 {
     do
     {
@@ -28,6 +28,7 @@ void _EEPROM_readData(int &pos, uint8_t* value, uint8_t size)
 
 
 
+#define DUMMY_PID_VALUE 3000.0f
 
 #define EEPROM_OFFSET 100
 
@@ -41,11 +42,17 @@ void _EEPROM_readData(int &pos, uint8_t* value, uint8_t size)
 #define EEPROM_VERSION "V10"
 #ifdef DELTA
 	#undef EEPROM_VERSION
-	#define EEPROM_VERSION "V11"
+	#define EEPROM_VERSION "V15"
 #endif
 #ifdef SCARA
 	#undef EEPROM_VERSION
 	#define EEPROM_VERSION "V12"
+#endif
+
+#ifdef ENABLE_AUTO_BED_LEVELING
+extern float bed_level[AUTO_BED_LEVELING_GRID_POINTS][AUTO_BED_LEVELING_GRID_POINTS];
+extern void reset_bed_level();
+extern void print_bed_level();
 #endif
 
 #ifdef EEPROM_SETTINGS
@@ -71,6 +78,8 @@ void Config_StoreSettings()
   EEPROM_WRITE_VAR(i,delta_radius);
   EEPROM_WRITE_VAR(i,delta_diagonal_rod);
   EEPROM_WRITE_VAR(i,delta_segments_per_second);
+  EEPROM_WRITE_VAR(i,max_pos);
+  EEPROM_WRITE_VAR(i,tower_adj);
   #endif
   #ifndef ULTIPANEL
   int plaPreheatHotendTemp = PLA_PREHEAT_HOTEND_TEMP, plaPreheatHPBTemp = PLA_PREHEAT_HPB_TEMP, plaPreheatFanSpeed = PLA_PREHEAT_FAN_SPEED;
@@ -94,6 +103,14 @@ void Config_StoreSettings()
     EEPROM_WRITE_VAR(i,dummy);
     EEPROM_WRITE_VAR(i,dummy);
   #endif
+  #ifndef PIDTEMPBED
+    float bedKp = DUMMY_PID_VALUE, bedKi = DUMMY_PID_VALUE, bedKd = DUMMY_PID_VALUE;
+  #endif
+
+  EEPROM_WRITE_VAR(i, bedKp);
+  EEPROM_WRITE_VAR(i, bedKi);
+  EEPROM_WRITE_VAR(i, bedKd);
+
   #ifndef DOGLCD
     int lcd_contrast = 32;
   #endif
@@ -101,11 +118,20 @@ void Config_StoreSettings()
   #ifdef SCARA
   EEPROM_WRITE_VAR(i,axis_scaling);        // Add scaling for SCARA
   #endif
+#ifdef SAVE_G29_CORRECTION_MATRIX
+  EEPROM_WRITE_VAR(i,bed_level);
+#endif
+  eeprom_max_offset = i;
   char ver2[4]=EEPROM_VERSION;
   i=EEPROM_OFFSET;
   EEPROM_WRITE_VAR(i,ver2); // validate data
   SERIAL_ECHO_START;
   SERIAL_ECHOLNPGM("Settings Stored");
+  // Report storage size
+  SERIAL_ECHO_START;
+  SERIAL_ECHOPGM("EEPROM ");
+  SERIAL_ECHOPAIR("  max offset ",eeprom_max_offset ); 
+  SERIAL_ECHOLN("");
 }
 #endif //EEPROM_SETTINGS
 
@@ -122,6 +148,12 @@ void Config_PrintSettings()
     SERIAL_ECHOPAIR(" E",axis_steps_per_unit[E_AXIS]);
     SERIAL_ECHOLN("");
       
+#ifdef SAVE_G29_CORRECTION_MATRIX
+	SERIAL_ECHO_START;
+ 	SERIAL_ECHOLNPGM("Bed Level Matrix :");
+    print_bed_level();
+    SERIAL_ECHOLN("");
+#endif
     SERIAL_ECHO_START;
 #ifdef SCARA
 SERIAL_ECHOLNPGM("Scaling factors:");
@@ -183,11 +215,43 @@ SERIAL_ECHOLNPGM("Scaling factors:");
     SERIAL_ECHOPAIR(" Z" ,endstop_adj[Z_AXIS] );
 	SERIAL_ECHOLN("");
 	SERIAL_ECHO_START;
-	SERIAL_ECHOLNPGM("Delta settings: L=delta_diagonal_rod, R=delta_radius, S=delta_segments_per_second");
+	SERIAL_ECHOLNPGM("Delta settings: L=delta_diagonal_rod, R=delta_radius, S=delta_segments_per_second, Z=Max Z home position");
 	SERIAL_ECHO_START;
 	SERIAL_ECHOPAIR("  M665 L",delta_diagonal_rod );
 	SERIAL_ECHOPAIR(" R" ,delta_radius );
 	SERIAL_ECHOPAIR(" S" ,delta_segments_per_second );
+	SERIAL_ECHOPAIR(" A" ,tower_adj[3]);
+	SERIAL_ECHOPAIR(" B" ,tower_adj[4]);
+	SERIAL_ECHOPAIR(" C" ,tower_adj[5]);
+	SERIAL_ECHOPAIR(" D" ,tower_adj[0]);
+	SERIAL_ECHOPAIR(" E" ,tower_adj[1]);
+	SERIAL_ECHOPAIR(" H" ,tower_adj[2]);
+	SERIAL_ECHOPAIR(" Z" ,max_pos[2] );
+	SERIAL_ECHOLN("");
+	SERIAL_ECHO_START;
+    SERIAL_ECHOLNPGM("Endstop adjustment (mm):");
+    SERIAL_ECHO_START;
+    SERIAL_ECHOPAIR("  M666 X",endstop_adj[0]);
+    SERIAL_ECHOPAIR(" Y" ,endstop_adj[1]);
+    SERIAL_ECHOPAIR(" Z" ,endstop_adj[2]);
+    SERIAL_ECHOLN("");
+    SERIAL_ECHO_START;
+    SERIAL_ECHOLNPGM("Delta Geometry adjustment:");
+    SERIAL_ECHO_START;
+    SERIAL_ECHOPAIR("  M666 A",tower_adj[0]);
+    SERIAL_ECHOPAIR(" B" ,tower_adj[1]);
+    SERIAL_ECHOPAIR(" C" ,tower_adj[2]);
+    SERIAL_ECHOPAIR(" E" ,tower_adj[3]);
+    SERIAL_ECHOPAIR(" F" ,tower_adj[4]);
+    SERIAL_ECHOPAIR(" G" ,tower_adj[5]);
+    SERIAL_ECHOPAIR(" R" ,delta_radius);
+    SERIAL_ECHOPAIR(" D" ,delta_diagonal_rod);
+    SERIAL_ECHOPAIR(" H" ,max_pos[2]);
+    SERIAL_ECHOPAIR(" P" ,zprobe_zoffset);
+    SERIAL_ECHOLN("");
+	SERIAL_ECHO_START;
+    SERIAL_ECHOLNPGM("Z min probe offset");
+	SERIAL_ECHOPAIR("  M851 Z",zprobe_zoffset );
 	SERIAL_ECHOLN("");
 #endif
 #ifdef PIDTEMP
@@ -198,6 +262,13 @@ SERIAL_ECHOLNPGM("Scaling factors:");
     SERIAL_ECHOPAIR(" I" ,unscalePID_i(Ki)); 
     SERIAL_ECHOPAIR(" D" ,unscalePID_d(Kd));
     SERIAL_ECHOLN(""); 
+#endif
+#ifdef PIDTEMPBED
+      SERIAL_ECHO_START;
+      SERIAL_ECHOPAIR("  M304 P", bedKp);
+      SERIAL_ECHOPAIR(" I", unscalePID_i(bedKi));
+      SERIAL_ECHOPAIR(" D", unscalePID_d(bedKd));
+      SERIAL_ECHOLN(""); 
 #endif
 } 
 #endif
@@ -235,6 +306,9 @@ void Config_RetrieveSettings()
 		EEPROM_READ_VAR(i,delta_radius);
 		EEPROM_READ_VAR(i,delta_diagonal_rod);
 		EEPROM_READ_VAR(i,delta_segments_per_second);
+		EEPROM_READ_VAR(i,max_pos);
+		EEPROM_READ_VAR(i,tower_adj);
+		recalc_delta_settings(delta_radius, delta_diagonal_rod);
         #endif
         #ifndef ULTIPANEL
         int plaPreheatHotendTemp, plaPreheatHPBTemp, plaPreheatFanSpeed;
@@ -254,6 +328,12 @@ void Config_RetrieveSettings()
         EEPROM_READ_VAR(i,Kp);
         EEPROM_READ_VAR(i,Ki);
         EEPROM_READ_VAR(i,Kd);
+        #ifndef PIDTEMPBED
+        float bedKp, bedKi, bedKd;
+        #endif
+        EEPROM_READ_VAR(i,bedKp);
+        EEPROM_READ_VAR(i,bedKi);
+        EEPROM_READ_VAR(i,bedKd);
         #ifndef DOGLCD
         int lcd_contrast;
         #endif
@@ -261,7 +341,9 @@ void Config_RetrieveSettings()
 		#ifdef SCARA
 		EEPROM_READ_VAR(i,axis_scaling);
 		#endif
-
+#ifdef SAVE_G29_CORRECTION_MATRIX
+        EEPROM_READ_VAR(i,bed_level);
+#endif
 		// Call updatePID (similar to when we have processed M301)
 		updatePID();
         SERIAL_ECHO_START;
@@ -282,6 +364,11 @@ void Config_ResetDefault()
     float tmp1[]=DEFAULT_AXIS_STEPS_PER_UNIT;
     float tmp2[]=DEFAULT_MAX_FEEDRATE;
     long tmp3[]=DEFAULT_MAX_ACCELERATION;
+
+#ifdef SAVE_G29_CORRECTION_MATRIX
+    reset_bed_level();
+#endif
+
     for (short i=0;i<4;i++) 
     {
         axis_steps_per_unit[i]=tmp1[i];  
@@ -309,6 +396,8 @@ void Config_ResetDefault()
 	delta_radius= DELTA_RADIUS;
 	delta_diagonal_rod= DELTA_DIAGONAL_ROD;
 	delta_segments_per_second= DELTA_SEGMENTS_PER_SECOND;
+	max_pos[2] = MANUAL_Z_HOME_POS;
+	tower_adj[0] = tower_adj[1] = tower_adj[2] = tower_adj[3] = tower_adj[4] = tower_adj[5] = 0;
 	recalc_delta_settings(delta_radius, delta_diagonal_rod);
 #endif
 #ifdef ULTIPANEL
@@ -320,7 +409,7 @@ void Config_ResetDefault()
     absPreheatFanSpeed = ABS_PREHEAT_FAN_SPEED;
 #endif
 #ifdef ENABLE_AUTO_BED_LEVELING
-    zprobe_zoffset = -Z_PROBE_OFFSET_FROM_EXTRUDER;
+    zprobe_zoffset = Z_PROBE_OFFSET_FROM_EXTRUDER;
 #endif
 #ifdef DOGLCD
     lcd_contrast = DEFAULT_LCD_CONTRAST;
@@ -337,6 +426,12 @@ void Config_ResetDefault()
     Kc = DEFAULT_Kc;
 #endif//PID_ADD_EXTRUSION_RATE
 #endif//PIDTEMP
+#ifdef PIDTEMPBED
+    bedKp = DEFAULT_bedKp;
+    bedKi = scalePID_i(DEFAULT_bedKi);
+    bedKd = scalePID_d(DEFAULT_bedKd);
+    updatePID();
+#endif
 
 SERIAL_ECHO_START;
 SERIAL_ECHOLNPGM("Hardcoded Default Settings Loaded");
